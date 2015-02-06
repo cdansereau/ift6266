@@ -1,0 +1,67 @@
+!obj:pylearn2.train.Train {
+    "dataset": &train !obj:ift6266h15.code.pylearn2.datasets.variable_image_dataset.DogsVsCats {
+        transformer: &transformer !obj:ift6266h15.code.pylearn2.datasets.variable_image_dataset.RandomCrop {
+            scaled_size: 256,
+            crop_size: 221,
+        },
+        start: 0,
+        stop: 20000,
+    },
+    "model": !obj:pylearn2.models.rbm.GaussianBinaryRBM {
+
+        "vis_space" : &vis_space !obj:pylearn2.space.Conv2DSpace {
+                "shape" : [32,32],
+                "num_channels" : 3
+        },
+        "hid_space" : &hid_space !obj:pylearn2.space.Conv2DSpace {
+                "shape" : [27,27],
+                "num_channels" : 10
+        },
+        "transformer" : !obj:pylearn2.linear.conv2d.make_random_conv2D {
+                "irange" : .05,
+                "input_space" : *vis_space,
+                "output_space" : *hid_space,
+                "kernel_shape" : [6,6],
+                "batch_size" : &batch_size 5
+        },
+        "energy_function_class" : !obj:pylearn2.energy_functions.rbm_energy.grbm_type_1 {},
+        "learn_sigma" : True,
+        "init_sigma" : .3333,
+        "init_bias_hid" : -2.,
+        "mean_vis" : False,
+        "sigma_lr_scale" : 1e-3
+
+    },
+
+    "algorithm": !obj:pylearn2.training_algorithms.sgd.SGD {
+
+        "learning_rate" : 1e-4,
+        "batch_size" : *batch_size,
+        "batches_per_iter" : 10,
+        "monitoring_batches" : 10,
+        "monitoring_dataset" : {
+            'train' : *train,
+            'valid': !obj:ift6266h15.code.pylearn2.datasets.variable_image_dataset.DogsVsCats {
+                transformer: *transformer,
+                start: 20000,
+                stop: 25000,
+            },
+        },
+        "cost" : !obj:pylearn2.costs.ebm_estimation.SMD {
+
+            "corruptor" : !obj:pylearn2.corruption.GaussianCorruptor {
+                    "stdev" : 0.4
+            },
+        },
+
+        "termination_criterion" : !obj:pylearn2.termination_criteria.MonitorBased {
+            "prop_decrease" : 0.01,
+            "N" : 10,
+        }
+       },
+
+    "save_path": "~/data/ml_data/dogs_vs_cats/train_struct.pkl",
+    "save_freq": 1
+}
+
+
