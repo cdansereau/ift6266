@@ -1,3 +1,5 @@
+# inspired by gyom scipt : https://github.com/gyom/ift6266h15/blob/master/code/scripts/base_conv_06.yaml
+
 !obj:pylearn2.train.Train {
     "dataset": &train !obj:ift6266h15.code.pylearn2.datasets.variable_image_dataset.DogsVsCats {
         transformer: &transformer !obj:ift6266h15.code.pylearn2.datasets.variable_image_dataset.RandomCrop {
@@ -7,61 +9,106 @@
         start: 0,
         stop: 20000,
     },
-    "model": !obj:pylearn2.models.rbm.GaussianBinaryRBM {
-
-        "vis_space" : &vis_space !obj:pylearn2.space.Conv2DSpace {
-                "shape" : [32,32],
-                "num_channels" : 3
-        },
-        "hid_space" : &hid_space !obj:pylearn2.space.Conv2DSpace {
-                "shape" : [27,27],
-                "num_channels" : 10
-        },
-        "transformer" : !obj:pylearn2.linear.conv2d.make_random_conv2D {
-                "irange" : .05,
-                "input_space" : *vis_space,
-                "output_space" : *hid_space,
-                "kernel_shape" : [6,6],
-                "batch_size" : &batch_size 5
-        },
-        "energy_function_class" : !obj:pylearn2.energy_functions.rbm_energy.grbm_type_1 {},
-        "learn_sigma" : True,
-        "init_sigma" : .3333,
-        "init_bias_hid" : -2.,
-        "mean_vis" : False,
-        "sigma_lr_scale" : 1e-3
+    "model": !obj:pylearn2.models.mlp.MLP {
+        input_space: !obj:pylearn2.space.Conv2DSpace {
+            shape: [221, 221],
+            num_channels: 3,
+            },
+        layers: [!obj:pylearn2.models.mlp.ConvRectifiedLinear {
+                     layer_name: 'h0',
+                     output_channels: 32,
+                     irange: 0.1,
+                     kernel_shape: [4, 4],
+                     pool_shape: [2, 2],
+                     pool_stride: [2, 2]
+                 },
+                 !obj:pylearn2.models.mlp.ConvRectifiedLinear {
+                     layer_name: 'h1',
+                     output_channels: 16,
+                     irange: 0.1,
+                     kernel_shape: [4, 4],
+                     pool_shape: [2, 2],
+                     pool_stride: [2, 2]
+                 },
+                 !obj:pylearn2.models.mlp.ConvRectifiedLinear {
+                     layer_name: 'h2',
+                     output_channels: 16,
+                     irange: 0.1,
+                     kernel_shape: [4, 4],
+                     pool_shape: [2, 2],
+                     pool_stride: [2, 2]
+                 },
+                 !obj:pylearn2.models.mlp.ConvRectifiedLinear {
+                     layer_name: 'h3',
+                     output_channels: 16,
+                     irange: 0.1,
+                     kernel_shape: [4, 4],
+                     pool_shape: [2, 2],
+                     pool_stride: [2, 2]
+                 },
+                 !obj:pylearn2.models.mlp.RectifiedLinear {
+                     layer_name: 'h4',
+                     dim: 16,
+                     #sparse_init: 10
+                     irange: 1.0
+                 },
+                 !obj:pylearn2.models.mlp.RectifiedLinear {
+                     layer_name: 'h5',
+                     dim: 16,
+                     #sparse_init: 10
+                     irange: 1.0
+                 },
+            !obj:pylearn2.models.mlp.Softmax {
+                layer_name: 'y',
+                n_classes: 2,
+                irange: 1.0,
+            },
+        ],
 
     },
-
     "algorithm": !obj:pylearn2.training_algorithms.sgd.SGD {
-
-        "learning_rate" : 1e-4,
-        "batch_size" : *batch_size,
-        "batches_per_iter" : 10,
-        "monitoring_batches" : 10,
-        "monitoring_dataset" : {
+        batch_size: &batch_size 64,
+        train_iteration_mode: 'batchwise_shuffled_sequential',
+        batches_per_iter: 100,
+        monitoring_batch_size: *batch_size,
+        monitoring_batches: 10,
+        monitor_iteration_mode: 'batchwise_shuffled_sequential',
+        #learning_rule : !obj:pylearn2.training_algorithms.learning_rule.AdaDelta {
+        #},
+        learning_rate: 1e-3,
+        learning_rule: !obj:pylearn2.training_algorithms.learning_rule.Momentum {
+            init_momentum: 0.1
+        },
+        monitoring_dataset: {
             'train' : *train,
             'valid': !obj:ift6266h15.code.pylearn2.datasets.variable_image_dataset.DogsVsCats {
                 transformer: *transformer,
                 start: 20000,
-                stop: 25000,
+                stop: 22500,
             },
         },
-        "cost" : !obj:pylearn2.costs.ebm_estimation.SMD {
-
-            "corruptor" : !obj:pylearn2.corruption.GaussianCorruptor {
-                    "stdev" : 0.4
-            },
+        cost: !obj:pylearn2.costs.cost.SumOfCosts {
+            costs: [!obj:pylearn2.costs.cost.MethodCost {
+                        method: 'cost_from_X'
+                    },
+                    !obj:pylearn2.costs.mlp.WeightDecay {
+                        coeffs: {h0: .001, h1: .001, h2: .001, h3: .001, h4: .001, h5: .001}
+                    }
+            ]
         },
+        termination_criterion: !obj:pylearn2.termination_criteria.EpochCounter {
+            max_epochs: 1000
+        },
+    },
+    "extensions": [
+        !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
+             channel_name: 'valid_y_misclass',
+             save_path: "~/data/tmp/base_conv_01_mlp_best.pkl"
+        },
+    ],
+    save_path: "~/data/tmp/base_conv_01_mlp.pkl",
+    save_freq: 20
 
-        "termination_criterion" : !obj:pylearn2.termination_criteria.MonitorBased {
-            "prop_decrease" : 0.01,
-            "N" : 10,
-        }
-       },
-
-    "save_path": "~/data/ml_data/dogs_vs_cats/train_struct.pkl",
-    "save_freq": 1
 }
 
 
