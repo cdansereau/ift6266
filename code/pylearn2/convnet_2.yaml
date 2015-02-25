@@ -95,10 +95,10 @@
     "extensions": [
         !obj:pylearn2.train_extensions.best_params.MonitorBasedSaveBest {
              channel_name: 'valid_y_misclass',
-             save_path: "~/data/tmp/base_conv_02_mlp_best.pkl"
+             save_path: "~/data/base_conv_02_mlp_best.pkl"
         },
     ],
-    save_path: "~/data/tmp/base_conv_02_mlp.pkl",
+    save_path: "~/data/base_conv_02_mlp.pkl",
     save_freq: 20
 
 }
