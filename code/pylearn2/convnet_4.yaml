@@ -94,6 +94,11 @@
                 start: 20000,
                 stop: 22500,
             },
+            'test': !obj:ift6266h15.code.pylearn2.datasets.variable_image_dataset.DogsVsCats {
+                transformer: *transformer,
+                start: 22500,
+                stop: 25000,
+            },
         },
         cost: !obj:pylearn2.costs.cost.SumOfCosts {
             costs: [!obj:pylearn2.costs.cost.MethodCost {
