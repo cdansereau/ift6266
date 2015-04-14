@@ -400,6 +400,73 @@ class RandomCropSobel(BaseImageTransformer):
         mag *= 255.0 / numpy.max(mag)  # normalize (Q&D)
         return mag
 
+class RandomDataAug(BaseImageTransformer):
+    """
+    Crops a square at random on a rescaled version of the image
+    it also randomly rotate and or flip (verticaly and horizontaly) the image
+
+    Parameters
+    ----------
+    scaled_size : int
+        Size of the smallest side of the image after rescaling
+    crop_size : int
+        Size of the square crop. Must be bigger than scaled_size.
+    rng : int or rng, optional
+        RNG or seed for an RNG
+    """
+    _default_seed = 2015 + 1 + 18
+
+    def __init__(self, scaled_size, crop_size, rng=_default_seed):
+        self.scaled_size = scaled_size
+        self.crop_size = crop_size
+        assert self.scaled_size > self.crop_size
+        self.rng = make_np_rng(rng, which_method="random_integers")
+
+    @wraps(BaseImageTransformer.get_shape)
+    def get_shape(self):
+        return (self.crop_size, self.crop_size)
+
+    @wraps(BaseImageTransformer.preprocess)
+    def preprocess(self, image):
+        small_axis = numpy.argmin(image.shape[:-1])
+        ratio = (1.0 * self.scaled_size) / image.shape[small_axis]
+        resized_image = misc.imresize(image, ratio)
+
+        max_i = resized_image.shape[0] - self.crop_size
+        max_j = resized_image.shape[1] - self.crop_size
+        i = self.rng.randint(low=0, high=max_i)
+        j = self.rng.randint(low=0, high=max_j)
+        cropped_image = resized_image[i: i + self.crop_size,
+                                      j: j + self.crop_size, :]
+
+        # Randomly apply a rotation
+        if self.rng.randint(low=0, high=2):
+            angles = [90,180,270]
+            angle_idx  = self.rng.randint(low=0, high=len(angles))
+            cropped_image = ndimage.interpolation.rotate(cropped_image,angles[angle_idx])
+        
+        # Randomly apply a flip
+        if self.rng.randint(low=0, high=2):
+            h_v_flip  = self.rng.randint(low=0, high=2)
+            cropped_image = flipimg(cropped_image,h_v_flip)
+            cropped_image = ndimage.interpolation.rotate(cropped_image,angles[angle_idx])
+
+        return cropped_image
+
+    def flipimg(im,flip_axis=0):
+        picture = im.copy()
+        x,y = picture.shape[:2]
+        if flip_axis == 0:
+            for idx in range(0, x/2):   
+                picture[x-1-idx,:,:] = im[idx,:,:]
+                picture[idx,:,:] = im[x-1-idx,:,:]
+        else:
+            for idx in range(0, y/2):
+                picture[:,y-1-idx,:] = im[:,idx,:]
+                picture[:,idx,:] = im[:,y-1-idx,:]
+        
+        return picture
+
 
 class RandomCrop(BaseImageTransformer):
     """
