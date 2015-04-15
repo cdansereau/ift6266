@@ -448,12 +448,11 @@ class RandomDataAug(BaseImageTransformer):
         # Randomly apply a flip
         if self.rng.randint(low=0, high=2):
             h_v_flip  = self.rng.randint(low=0, high=2)
-            cropped_image = flipimg(cropped_image,h_v_flip)
-            cropped_image = ndimage.interpolation.rotate(cropped_image,angles[angle_idx])
+            cropped_image = self.flipimg(cropped_image,h_v_flip)
 
         return cropped_image
-
-    def flipimg(im,flip_axis=0):
+    
+    def flipimg(self,im,flip_axis=0):
         picture = im.copy()
         x,y = picture.shape[:2]
         if flip_axis == 0:
